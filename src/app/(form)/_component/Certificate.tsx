@@ -1,24 +1,27 @@
-'use client'
-import React, { useEffect } from 'react'
-import { RecruitDTO, CertificateDTO } from '@/types/SpringBootReponse'
+'use client';
+import React, { forwardRef, useImperativeHandle, useEffect } from 'react';
+import { RecruitDTO, CertificateDTO } from '@/types/SpringBootReponse';
+import { toast } from 'react-toastify';
 
 interface CertificateProps {
-  recruitData: RecruitDTO
-  setRecruitData: React.Dispatch<React.SetStateAction<RecruitDTO>>
+  recruitData: RecruitDTO;
+  setRecruitData: React.Dispatch<React.SetStateAction<RecruitDTO>>;
 }
 
-const Certificate: React.FC<CertificateProps> = ({ recruitData, setRecruitData }) => {
+const Certificate = forwardRef((props: CertificateProps, ref) => {
+  const { recruitData, setRecruitData } = props;
+
   // Function to handle input changes
   const handleChange = (index: number, field: keyof CertificateDTO, value: string) => {
     const updatedCertificates = recruitData.certificates?.map((certificate, idx) =>
-      idx === index ? { ...certificate, [field]: value } : certificate,
-    )
+      idx === index ? { ...certificate, [field]: value } : certificate
+    );
 
     setRecruitData((prevData) => ({
       ...prevData,
       certificates: updatedCertificates,
-    }))
-  }
+    }));
+  };
 
   const addCertificate = () => {
     const newCertificate: CertificateDTO = {
@@ -27,33 +30,33 @@ const Certificate: React.FC<CertificateProps> = ({ recruitData, setRecruitData }
       acquDate: '',
       organizeName: '',
       checked: false,
-    }
+    };
 
     setRecruitData((prevData) => ({
       ...prevData,
       certificates: [...(prevData.certificates || []), newCertificate],
-    }))
-  }
+    }));
+  };
 
   const toggleCheckbox = (index: number) => {
     const updatedCertificates = recruitData.certificates?.map((certificate, idx) =>
-      idx === index ? { ...certificate, checked: !certificate.checked } : certificate,
-    )
+      idx === index ? { ...certificate, checked: !certificate.checked } : certificate
+    );
 
     setRecruitData((prevData) => ({
       ...prevData,
       certificates: updatedCertificates,
-    }))
-  }
+    }));
+  };
 
   const deleteSelectedRows = () => {
-    const updatedCertificates = recruitData.certificates?.filter((certificate) => !certificate.checked)
+    const updatedCertificates = recruitData.certificates?.filter((certificate) => !certificate.checked);
 
     setRecruitData((prevData) => ({
       ...prevData,
       certificates: updatedCertificates,
-    }))
-  }
+    }));
+  };
 
   useEffect(() => {
     if (!recruitData.certificates || recruitData.certificates.length === 0) {
@@ -68,9 +71,69 @@ const Certificate: React.FC<CertificateProps> = ({ recruitData, setRecruitData }
             checked: false,
           },
         ],
-      }))
+      }));
     }
-  }, [recruitData.certificates, recruitData.seq, setRecruitData])
+  }, [recruitData.certificates, recruitData.seq, setRecruitData]);
+
+  // useImperativeHandle을 사용하여 부모 컴포넌트에서 사용할 수 있는 메서드 정의
+  useImperativeHandle(ref, () => ({
+    validate: () => {
+      if (!recruitData.certificates) {
+        return true; // Return true if there are no certificate records to validate
+      }
+
+      for (let index = 0; index < recruitData.certificates.length; index++) {
+        const certificate = recruitData.certificates[index];
+        const fields: (keyof CertificateDTO)[] = [
+          'qualifiName',
+          'acquDate',
+          'organizeName',
+        ];
+
+        for (const field of fields) {
+          const fieldValue = certificate[field];
+
+          // Ensure the field is not undefined and is a string
+          if (typeof fieldValue === 'string' && fieldValue.trim() === '') {
+            // 필드 요소 선택
+            const fieldElement = document.getElementById(`certificate-${index}-${field}`) as HTMLInputElement | HTMLSelectElement | null;
+
+            // 필드에 포커스 및 강조
+            if (fieldElement) {
+              fieldElement.focus();
+              fieldElement.classList.add('outline-red-500', 'outline-2');
+
+              const message = fieldElement.getAttribute('data-th-name');
+              if (message) {
+                toast.error(`${message}을(를) 입력해 주세요.`, {
+                  toastId: 'validationError',
+                });
+              }
+            }
+
+            return false;
+          }
+        }
+
+        // Additional validation: acquisition date comparison
+        const acquDate = certificate.acquDate || ''; // Use empty string as default
+        const acquisitionDate = new Date(acquDate);
+
+        if (acquisitionDate > new Date()) {
+          const acquDateFieldElement = document.getElementById(`certificate-${index}-acquDate`) as HTMLInputElement | HTMLSelectElement | null;
+          if (acquDateFieldElement) {
+            acquDateFieldElement.focus();
+            acquDateFieldElement.classList.add('outline-red-500', 'outline-2');
+            toast.error('취득일은 현재 날짜보다 이전이어야 합니다.', {
+              toastId: 'validationError',
+            });
+          }
+          return false;
+        }
+      }
+      return true;
+    },
+  }));
 
   return (
     <div className='bg-white shadow-md rounded-lg w-4/5 p-4 mx-auto mt-7'>
@@ -115,6 +178,7 @@ const Certificate: React.FC<CertificateProps> = ({ recruitData, setRecruitData }
                   <td className='border-b border-gray-200 py-3 text-center'>
                     <input
                       type='text'
+                      id={`certificate-${index}-qualifiName`}
                       value={certificate.qualifiName || ''}
                       onChange={(e) => handleChange(index, 'qualifiName', e.target.value)}
                       className='border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-300'
@@ -124,6 +188,7 @@ const Certificate: React.FC<CertificateProps> = ({ recruitData, setRecruitData }
                   <td className='border-b border-gray-200 py-3 text-center'>
                     <input
                       type='date'
+                      id={`certificate-${index}-acquDate`}
                       value={certificate.acquDate || ''}
                       onChange={(e) => handleChange(index, 'acquDate', e.target.value)}
                       className='border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-300'
@@ -133,6 +198,7 @@ const Certificate: React.FC<CertificateProps> = ({ recruitData, setRecruitData }
                   <td className='border-b border-gray-200 py-3 text-center'>
                     <input
                       type='text'
+                      id={`certificate-${index}-organizeName`}
                       value={certificate.organizeName || ''}
                       onChange={(e) => handleChange(index, 'organizeName', e.target.value)}
                       className='border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-300'
@@ -185,7 +251,7 @@ const Certificate: React.FC<CertificateProps> = ({ recruitData, setRecruitData }
         </table>
       </div>
     </div>
-  )
-}
+  );
+});
 
-export default Certificate
+export default Certificate;

@@ -1,8 +1,7 @@
-// Career.tsx
-
 'use client';
-import React from 'react';
+import React, { forwardRef, useImperativeHandle, useEffect } from 'react';
 import { RecruitDTO, CareerDTO } from '@/types/SpringBootReponse';
+import { toast } from 'react-toastify';
 
 interface CareerProps {
   recruitData: RecruitDTO;
@@ -10,7 +9,9 @@ interface CareerProps {
   cities: string[];
 }
 
-const Career: React.FC<CareerProps> = ({ recruitData, setRecruitData, cities }) => {
+const Career = forwardRef((props: CareerProps, ref) => {
+  const { recruitData, setRecruitData, cities } = props;
+
   // Function to handle input changes
   const handleChange = (index: number, field: keyof CareerDTO, value: string) => {
     const updatedCareers = recruitData.careers?.map((career, idx) =>
@@ -64,7 +65,7 @@ const Career: React.FC<CareerProps> = ({ recruitData, setRecruitData, cities }) 
   };
 
   // Use useEffect to initialize careers if empty
-  React.useEffect(() => {
+  useEffect(() => {
     if (!recruitData.careers || recruitData.careers.length === 0) {
       setRecruitData((prevData) => ({
         ...prevData,
@@ -80,6 +81,71 @@ const Career: React.FC<CareerProps> = ({ recruitData, setRecruitData, cities }) 
       }));
     }
   }, [recruitData.careers, recruitData.seq, setRecruitData]);
+
+  // useImperativeHandle을 사용하여 부모 컴포넌트에서 사용할 수 있는 메서드 정의
+  useImperativeHandle(ref, () => ({
+    validate: () => {
+      if (!recruitData.careers) {
+        return true; // Return true if there are no career records to validate
+      }
+
+      for (let index = 0; index < recruitData.careers.length; index++) {
+        const career = recruitData.careers[index];
+        const fields: (keyof CareerDTO)[] = [
+          'startPeriod',
+          'endPeriod',
+          'compName',
+          'task',
+          'location',
+        ];
+
+        for (const field of fields) {
+          const fieldValue = career[field];
+
+          // Ensure the field is not undefined and is a string
+          if (typeof fieldValue === 'string' && fieldValue.trim() === '') {
+            // 필드 요소 선택
+            const fieldElement = document.getElementById(`career-${index}-${field}`) as HTMLInputElement | HTMLSelectElement | null;
+
+            // 필드에 포커스 및 강조
+            if (fieldElement) {
+              fieldElement.focus();
+              fieldElement.classList.add('outline-red-500', 'outline-2');
+
+              const message = fieldElement.getAttribute('data-th-name');
+              if (message) {
+                toast.error(`${message}을(를) 입력해 주세요.`, {
+                  toastId: 'validationError',
+                });
+              }
+            }
+
+            return false;
+          }
+        }
+
+        // Additional validation: date comparison
+        const startPeriod = career.startPeriod || ''; // Use empty string as default
+        const endPeriod = career.endPeriod || ''; // Use empty string as default
+
+        const startDate = new Date(startPeriod);
+        const endDate = new Date(endPeriod);
+
+        if (startDate > endDate) {
+          const startFieldElement = document.getElementById(`career-${index}-startPeriod`) as HTMLInputElement | HTMLSelectElement | null;
+          if (startFieldElement) {
+            startFieldElement.focus();
+            startFieldElement.classList.add('outline-red-500', 'outline-2');
+            toast.error('근무기간 시작일은 종료일보다 이전이어야 합니다.', {
+              toastId: 'validationError',
+            });
+          }
+          return false;
+        }
+      }
+      return true;
+    },
+  }));
 
   return (
     <div className="bg-white shadow-md rounded-lg w-4/5 p-4 mx-auto mt-7">
@@ -127,6 +193,7 @@ const Career: React.FC<CareerProps> = ({ recruitData, setRecruitData, cities }) 
                   <td className="border-b border-gray-200 py-3 text-center">
                     <input
                       type="month"
+                      id={`career-${index}-startPeriod`}
                       value={career.startPeriod || ''}
                       onChange={(e) => handleChange(index, 'startPeriod', e.target.value)}
                       className="border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-300"
@@ -136,6 +203,7 @@ const Career: React.FC<CareerProps> = ({ recruitData, setRecruitData, cities }) 
                     ~
                     <input
                       type="month"
+                      id={`career-${index}-endPeriod`}
                       value={career.endPeriod || ''}
                       onChange={(e) => handleChange(index, 'endPeriod', e.target.value)}
                       className="border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-300"
@@ -146,6 +214,7 @@ const Career: React.FC<CareerProps> = ({ recruitData, setRecruitData, cities }) 
                   <td className="border-b border-gray-200 py-3 text-center">
                     <input
                       type="text"
+                      id={`career-${index}-compName`}
                       value={career.compName || ''}
                       onChange={(e) => handleChange(index, 'compName', e.target.value)}
                       className="border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-300"
@@ -155,6 +224,7 @@ const Career: React.FC<CareerProps> = ({ recruitData, setRecruitData, cities }) 
                   <td className="border-b border-gray-200 py-3 text-center">
                     <input
                       type="text"
+                      id={`career-${index}-task`}
                       value={career.task || ''}
                       onChange={(e) => handleChange(index, 'task', e.target.value)}
                       className="border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-300"
@@ -163,6 +233,7 @@ const Career: React.FC<CareerProps> = ({ recruitData, setRecruitData, cities }) 
                   </td>
                   <td className="border-b border-gray-200 py-3 text-center">
                     <select
+                      id={`career-${index}-location`}
                       value={career.location || ''}
                       onChange={(e) => handleChange(index, 'location', e.target.value)}
                       className="border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-300"
@@ -248,6 +319,6 @@ const Career: React.FC<CareerProps> = ({ recruitData, setRecruitData, cities }) 
       </div>
     </div>
   );
-}
+});
 
 export default Career;
